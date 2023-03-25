@@ -1,0 +1,26 @@
+#!/bin/sh
+
+if [ -z "$1" ]; then
+  echo "Usage: `basename "$0"` CONTAINER [COMMAND [ARG]...]"
+  echo ""
+  echo "Enters the Docker CONTAINER and executes the specified COMMAND."
+  echo "If COMMAND is not specified, runs an interactive shell in CONTAINER."
+  exit
+fi
+
+# Taken from https://gist.github.com/BretFisher/5e1a0c7bcca4c735e716abf62afad389
+NSENTER="docker run -it --rm --privileged --pid=host alpine:edge nsenter -t 1 -m -u -n -i nsenter"
+
+PID=$(docker inspect --format "{{.State.Pid}}" "$1")
+[ -z "$PID" ] && exit 1
+shift
+
+# Prepare nsenter flags
+OPTS="--target $PID --mount --uts --ipc --net --pid --"
+
+if [ $# -lt 1 ]; then
+  # No arguments, default to bash
+  $NSENTER $OPTS bash
+else
+  $NSENTER $OPTS "$@"
+fi
